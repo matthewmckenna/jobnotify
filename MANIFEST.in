@@ -1,0 +1,3 @@
+include cfg.ini.sample
+include README.rst
+include docs/*.rst

@@ -1,0 +1,22 @@
+{
+  "4da3f3ec1f781a3f": {
+    "company": "Brightwater Group",
+    "date_created": "Wed, 12 Apr 2017 13:21:11 GMT",
+    "desc": "Our client, a major, international banking brand, currently has a job opening for a lead data scientist. As a lead data Scientist sitting within the banks...",
+    "jobtitle": "Lead Data Scientist",
+    "lat": 53.332417,
+    "location": "Dublin",
+    "lon": -6.247253,
+    "url": "http://ie.indeed.com/viewjob?jk=4da3f3ec1f781a3f"
+  },
+  "e90a42701d1d29ec": {
+    "company": "Trinity College Dublin",
+    "date_created": "Mon, 10 Apr 2017 23:37:36 GMT",
+    "desc": "The investigator will join a vibrant inter-disciplinary team - including epidemiologists, biostatisticians, economists, social scientists, biomedical engineers...",
+    "jobtitle": "Research Fellow (Data Science/Biomedical Engineering)",
+    "lat": 53.332417,
+    "location": "Dublin",
+    "lon": -6.247253,
+    "url": "http://ie.indeed.com/viewjob?jk=e90a42701d1d29ec"
+  }
+}

@@ -1,0 +1,15 @@
+__pycache__/
+
+cfg.ini
+fix.sh
+
+# setuptools distribution folder
+dist/
+
+# distribution / packaging
+*.egg-info/
+*.egg
+
+# unit test / coverage reports
+htmlcov/
+.coverage

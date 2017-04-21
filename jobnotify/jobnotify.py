@@ -1,0 +1,388 @@
+#!/usr/bin/env python3
+from configparser import DuplicateOptionError
+import email
+# import http.client  # to catch IncompleteRead
+import json
+import logging
+import os
+# from pprint import pprint
+import re
+import smtplib
+import sys
+# import time
+from urllib.parse import urlencode
+from urllib.request import urlopen
+
+from slackclient import SlackClient
+
+from .exceptions import (
+    # BlankKeyError,
+    ConfigurationFileError,
+    SlackCfgError,
+    # RequiredKeyMissingError,
+    # SectionNotFoundError,
+)
+from .utils import (
+    # ConfigurationFileError,
+    # configure_account,
+    get_sanitised_params,
+    get_section_configs,
+    # load_cfg,
+    load_json_db,
+    write_json_db,
+)
+
+INDEED_BASE_URL = 'http://api.indeed.com/ads/apisearch'
+INDEED_API_LIMIT = 25
+DB_DIR = 'databases'
+
+
+def build_url(base_url, params):
+    """Return a correctly formatted URL.
+
+    Args:
+        base_url: base URL of the API
+        params: dictionary of parameters to be encoded.
+
+    Returns:
+        URL string
+    """
+    encoded_params = urlencode(params)
+    return f'{base_url}?{encoded_params}'
+
+
+def construct_slack_message(posts):
+    """Construct a Slack message for sending.
+
+    The Slack RTM API (https://api.slack.com/rtm#limits)
+    recommends that a single message be no longer than 4 kB.
+    To handle this, we construct our message, and then
+    subsequently split into messages of 10 listings or less.
+
+    An iterable is returned: either a single element list
+    containing a message with <= 10 listings, or a
+    generator with > 10 listings.
+
+    Args:
+        posts: dictionary containing new job listings.
+
+    Returns:
+        msg_it: an iterable containing the message(s) to
+            be posted. Note this may be a single element
+            list or a generator.
+    """
+    nposts = len(posts)
+
+    # build the full message
+    msg_template = '{}. <{url}|{jobtitle} @ {compay}>\nSnippet: {desc}\n'
+    msg = '\n'.join(msg_template.format(i+1, **p) for i, p in enumerate(posts.values()))
+
+    if nposts > 10:
+        logging.debug('Splitting message into %d chunks..', nposts//10)
+        # split the message after 10 listings, i.e., on a `11.`, `21.`, etc.
+        t = [''] + re.split(r'(\d?\d1\.)', msg)
+        # create an iterator from the above list
+        it = iter(t)
+        # create a generator which pairs successive elements of the original list
+        msg_it = (m+next(it, '') for m in it)
+    else:
+        msg_it = [msg]
+
+    return msg_it
+
+
+def construct_email(cfg, query, location, posts):
+    """Construct an email message.
+
+    Args:
+        cfg: email configuration.
+        query: search term used.
+        location: location to search for jobs.
+        posts: dictionary containing new job listings.
+
+    Returns:
+        message: string containing the email message.
+    """
+    nposts = len(posts)
+
+    # unpack required variables
+    user, send_to = cfg['email_from'], cfg['email_to']
+
+    # unpack optional variables
+    try:
+        name = cfg['name']
+    except KeyError:
+        # if the `name` key isn't present, then use the first part of the
+        # email address to address recipient.
+        name = cfg['email_to'].split('@')[0]
+
+    try:
+        sender_name = cfg['sender_name']
+    except KeyError:
+        sender_name = cfg['email_from']
+
+    try:
+        signature = cfg['signature']
+    except KeyError:
+        signature = ''
+
+    # some temporary variables to correct grammar in the email message
+    was_were = 'was' if nposts == 1 else 'were'
+    is_are = 'is' if nposts == 1 else 'are'
+    job_s = 'job' if nposts == 1 else 'jobs'
+    listing_s = 'listing' if nposts == 1 else 'listings'
+
+    subject = f'Job opportunities: {nposts} new {job_s} posted'
+    description = '{}. {jobtitle} @ {company}\nLink: {url}\nLocation: {location}\nSnippet: {desc}\n'
+    posts_content = '\n'.join(description.format(i+1, **p) for i, p in enumerate(posts.values()))
+
+    s = (
+        f'From: {sender_name} <{user}>\n'
+        f'To: {send_to}\n'
+        f'Subject: {subject}\n'
+        f'Hello {name},\n\n'
+        f'There {is_are} {nposts} new job {listing_s} to review.\n'
+        f'The following job {listing_s} {was_were} found for {repr(query)} in {repr(location)}:\n\n'
+        f'{posts_content}\n'
+        f'{signature}'
+    )
+
+    return s
+
+
+def indeed_api_request(params, publisher_id):
+    """Performs an API request and returns results.
+
+    Args:
+        params:
+        publisher_id:
+
+    Returns:
+        posts: a list of jobs
+    """
+    complete_result = False
+
+    while not complete_result:
+        url = build_url(INDEED_BASE_URL, params)
+
+        with urlopen(url) as u:
+            r = u.read().decode('utf-8')
+
+        try:
+            response = json.loads(r)
+        except json.JSONDecodeError as e:
+            logging.exception('Error: {}'.format(e))
+            sys.exit()
+
+        for result in response['results']:
+            yield {
+                result['jobkey']:
+                    {
+                        'jobtitle': result['jobtitle'],
+                        'company': result['company'],
+                        'date_created': result['date'],
+                        'location': result['formattedLocation'],
+                        'url': result['url'].split('&')[0],
+                        'lat': result['latitude'],
+                        'lon': result['longitude'],
+                        'desc': result['snippet'],
+                    }
+                }
+
+        if response['end'] >= response['totalResults']:
+            complete_result = True
+
+        # update results start in order to get to the next page
+        params['start'] += INDEED_API_LIMIT
+
+
+def email_notify(cfg, posts, query, location):
+    """Notify recipient of new postings.
+
+    Args:
+        cfg: email section from configuration file.
+        posts: new posts since the last notification
+        query: query from `indeed` section of config file
+        location: location from `indeed` section of config file
+    """
+    # TODO: Error handling
+    # email_cfg = load_cfg(
+    #     cfg_filename,
+    #     'email',
+    #     required={'email_from', 'email_to', 'password'},
+    # )
+    user = cfg['email_from']
+    password = cfg['password']
+
+    message = construct_email(cfg, query, location, posts)
+    msg = email.message_from_string(message)
+    msg.set_charset('utf-8')
+
+    send_email(user, password, msg)
+
+
+def send_email(user, password, msg):
+    """Send an email.
+
+    Args:
+        user: account of sender
+        password: password of sender
+        msg: email.message.Message object
+    """
+    with smtplib.SMTP('smtp.gmail.com', 587) as smtp:
+        smtp.ehlo()  # success 250
+        smtp.starttls()  # success 220
+        smtp.login(user, password)  # success 235 smtplib.SMTPAuthenticationError
+        smtp.send_message(msg)  # empty dict is a success
+
+
+def slack_notify(cfg, posts):
+    """Post a message to a Slack channel.
+
+    Args:
+        cfg: configuration for Slack account.
+        msg_it: message(s) to be sent. May be a list
+            or a generator.
+
+    Raises:
+        SlackCfgError: raised if we get a bad response.
+    """
+    msg_it = construct_slack_message(posts)
+
+    token = cfg['token']
+    channel = cfg['channel']
+
+    sc = SlackClient(token)
+
+    # https://api.slack.com/methods/chat.postMessage
+    # slack_errors = {
+    #     'not_authed': 'No authentication token provided.',
+    #     'invalid_auth': 'Invalid authentication token.',
+    #     'account_inactive': 'Authentication token is for a deleted user or team.',
+    #     'no_text': 'No message text provided',
+    #     'not_in_channel': 'Cannot post user messages to a channel they are not in.',
+    #     'channel_not_found': 'Value passed for channel was invalid.',
+    # }
+
+    r = sc.api_call('api.test')
+    if not r['ok']:
+        reason = r['error']
+        raise SlackCfgError(f'ERROR: {reason}')
+
+    for m in msg_it:
+        sc.api_call(
+            'chat.postMessage',
+            text=m,
+            channel=channel,
+            icon_emoji=':robot_face:',
+        )
+
+
+def jobnotify(cfg_filename='cfg.ini'):
+    """Main entry point for the script"""
+    # TODO: if config does not exist perhaps populate with defaults
+    if not os.path.isfile(cfg_filename):
+        raise FileNotFoundError(f'Configuration file {repr(cfg_filename)} does not exist.')
+
+    # load both configuration files
+    # indeed_cfg, email_cfg = get_section_configs(cfg_filename)
+    cfgs = get_section_configs(cfg_filename)
+
+    # the `indeed` section is the fisr
+    indeed_cfg = cfgs[0]
+
+    # load configuration parameters for indeed api
+    # try:
+    #     indeed_cfg = load_cfg(
+    #         cfg_filename,
+    #         section='indeed',
+    #         required={'key', 'query', 'location', 'country'},
+    #     )
+    # except (ConfigurationFileError, DuplicateOptionError) as e:
+    #     print('ERROR: {}'.format(e))
+    #     logging.exception(e)
+
+    params = {
+        'publisher': indeed_cfg['key'],  # publisher ID
+        'q': indeed_cfg['query'],  # query
+        'l': indeed_cfg['location'],  # location (city, state, region)
+        # 'sort': 'date',  # sort by 'date' or 'relevance'
+        'radius': 10,  # distance from search location 'as the crow flies'
+        'jt': 'fulltime',  # job-type: 'fulltime', 'parttime, 'contract', 'temporary', 'internship'
+        'limit': 25,  # max number of results per query - max 25
+        'fromage': 10,  # number of days back to search
+        'start': 0,  # start results at this search number
+        # 'filter': '',  # filter dupilcate postings
+        'highlight': 0,  # bold search term in snippet
+        'latlong': 1,  # return latitude and longitude
+        'co': indeed_cfg['country'],  # search within this country
+        'v': 2,  # version of the API - should be 2
+        'format': 'json',  # response format
+    }
+
+    logging.debug(params)
+
+    query, loc = get_sanitised_params(params['q'], params['l'])
+
+    db_name = f'{query}_{loc}.json'
+    logging.info('Load JSON database %r', os.path.join(DB_DIR, db_name))
+    db = load_json_db(os.path.join(DB_DIR, db_name))
+
+    # get all listings from the indeed API
+    all_posts = indeed_api_request(params, indeed_cfg['key'])
+
+    # build a list of posts that we haven't seen before
+    posts = {k: v for d in all_posts for k, v in d.items() if k not in db}
+    logging.info('len(posts)=%d', len(posts))
+    # posts = None
+
+    if posts:
+        # send the notification
+        # TODO: need a general notification function
+        # notify(email_cfg, posts, indeed_cfg['query'], indeed_cfg['location'])
+        notify(cfgs, posts)
+        logging.info('Email sent with %d listings(s).', len(posts))
+
+        # update our existing database
+        db.update(posts)
+
+        logging.info('Write JSON database %r', os.path.join(DB_DIR, db_name))
+
+        write_json_db(db, os.path.join(DB_DIR, db_name))
+    else:
+        logging.info('No new positions since last email. No email sent.')
+
+
+def notify(cfgs, posts):
+    """Generic notification function."""
+    # assuming cfgs is a list of configs
+    # if someone modifies the layout of the cfg file we're in trouble!
+    indeed, email, slack, notify_via = cfgs
+
+    if notify_via.getboolean('slack'):
+        slack_notify(slack, posts)
+
+    if notify_via.getboolean('email'):
+        query = indeed.get('query')
+        location = indeed.get('location')
+        email_notify(email, posts, query, location)
+
+
+def main():
+    """Main entry point for this utility."""
+    # some simple logging for now
+    logging.basicConfig(
+        filename='.jobnotify.log',
+        format='%(asctime)s %(message)s',
+        level=logging.DEBUG
+    )
+
+    try:
+        jobnotify('cfg.ini')
+    except (FileNotFoundError, ConfigurationFileError, DuplicateOptionError) as e:
+        print(f'ERROR: {e}')
+        logging.exception(e)
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -1,0 +1,27 @@
+[indeed]
+key = 4815162342
+location = dublin
+country = ie
+query = scientist
+
+[email]
+email_from = test.sender@gmail.com
+password = swordfish
+email_to = test.recipient@gmail.com
+
+#### optional parameters used for email personalisation.
+# first name
+name = Matthew
+# sender name
+sender_name = Job-Notify
+# email sign-off
+signature = - T
+#### end of optional parameters.
+
+[slack]
+token = xoxb-0123456789
+channel = #jobs
+
+[notify_via]
+email = true
+slack = false
