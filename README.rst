@@ -53,7 +53,8 @@ emails.
 Configuration
 ==============
 
-#. Make a copy of the file ``cfg.ini.sample`` and rename the copy to ``cfg.ini``.
+#. Make a copy of the file ``jobnotify.config.sample`` and rename the copy to
+   ``jobnotify.config``.
 #. Under the ``indeed`` section, fill out the fields for ``location``,
    ``country`` and ``query``.
 #. Under the email section, fill out the fields for ``email_from``, ``email_to``
@@ -135,7 +136,7 @@ Known Issues
 =============
 
 - It is necessary to run the application from the ``jobnotify`` directory.
-
+- ``jobnotify.config`` must be present in the current directory.
 
 Experimental Features
 ======================

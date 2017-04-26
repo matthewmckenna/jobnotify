@@ -20,3 +20,11 @@ class NotificationsNotConfiguredError(ConfigurationFileError):
 
 class SlackCfgError(ConfigurationFileError):
     """Base exception class for errors relation to the Slack Configuration."""
+
+
+class EmailAuthenticationError(ConfigurationFileError):
+    """Raised when either `email_from` or `password` are incorrect in config file."""
+
+
+class IndeedAuthenticationError(ConfigurationFileError):
+    """Raised when there is an issue with the Indeed publisher key."""

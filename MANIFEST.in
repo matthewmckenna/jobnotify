@@ -1,3 +1,5 @@
-include cfg.ini.sample
+include jobnotify.config.sample
 include README.rst
 include docs/*.rst
+include databases/*.json
+include .test_databases/*.json

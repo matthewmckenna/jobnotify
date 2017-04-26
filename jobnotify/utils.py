@@ -1,4 +1,5 @@
 # from collections import defaultdict
+import base64
 import configparser
 import json
 import os
@@ -11,6 +12,32 @@ from .exceptions import (
     RequiredKeyMissingError,
     SectionNotFoundError,
 )
+
+
+class EmailMatch:
+    """Helper class to compare properties of emails."""
+    def __init__(self, expected):
+        self.expected = expected
+
+    def __eq__(self, other):
+        return (
+            self.expected['from'] == other['from'] and
+            self.expected['to'] == other['to'] and
+            self.expected['subject'] == other['subject'] and
+            self.expected['message'] == base64.b64decode(other.get_payload()).decode('utf-8')
+        )
+
+    def __ne__(self, other):
+        """Define a non-equality test"""
+        return not self.__eq__(other)
+
+    def __repr__(self):
+        return (
+            f'From: {self.expected["from"]}\n'
+            f'To: {self.expected["to"]}\n'
+            f'Subject: {self.expected["subject"]}\n'
+            f'Message: {self.expected["message"]}'
+        )
 
 
 def get_sanitised_params(q, l):
@@ -105,6 +132,7 @@ def get_section_configs(filename):
     Returns:
         list of configuration sections.
     """
+    # TODO: Can this be turned into a generator?
     cfgs = []
 
     # TODO: pass in this structure

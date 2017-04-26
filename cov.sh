@@ -10,5 +10,6 @@ fi
 echo "Running tests.."
 coverage run -m unittest tests.test_utils
 coverage run -am unittest tests.test_jobnotify
+coverage run -am unittest tests.test_main
 coverage html
 coverage report -m

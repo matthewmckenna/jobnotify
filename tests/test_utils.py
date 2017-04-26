@@ -1,6 +1,7 @@
 from configparser import ConfigParser
 # from itertools import dropwhile
 # import io
+import email
 import json
 import os
 # import shutil
@@ -8,7 +9,9 @@ import os
 import unittest
 
 from .context import jobnotify
+from jobnotify import TEST_DB_DIR
 from jobnotify.utils import (
+    EmailMatch,
     get_sanitised_params,
     get_section_configs,
     load_cfg,
@@ -32,9 +35,9 @@ class ConfigFileTestCase(unittest.TestCase):
         cls.email_reqs = {'email_to', 'email_from', 'password'}
         cls.slack_reqs = {'token', 'channel'}
         cls.notify_via_reqs = {'email', 'slack'}
-        cls.sample_filename = 'cfg.ini.sample'
-        cls.blank_key_filename = os.path.join('databases', '.blankkey')
-        cls.no_notifications = os.path.join('databases', '.nonotifications')
+        cls.sample_filename = 'jobnotify.config.sample'
+        cls.blank_key_filename = os.path.join(TEST_DB_DIR, '.blankkey')
+        cls.no_notifications = os.path.join(TEST_DB_DIR, '.nonotifications')
 
         with open(cls.sample_filename) as f, open(cls.blank_key_filename, 'w') as g:
             _ = f.read().split('\n')
@@ -104,15 +107,15 @@ class ConfigFileTestCase(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         os.remove(cls.blank_key_filename)
+        os.remove(cls.no_notifications)
 
 
 class DatabaseTestCase(unittest.TestCase):
     """Test case for handling the database."""
     @classmethod
     def setUpClass(cls):
-        # TODO: Don't use databases dir
-        cls.sample_database_name = os.path.join('databases', '.sampledb.json')
-        cls.sample_write_db = os.path.join('databases', '.testdatabasewrite.json')
+        cls.sample_database_name = os.path.join(TEST_DB_DIR, '.sampledb.json')
+        cls.sample_write_db = os.path.join(TEST_DB_DIR, '.testdatabasewrite.json')
         cls.json_db = {
             "4da3f3ec1f781a3f":
                 {
@@ -163,6 +166,50 @@ class DatabaseTestCase(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         os.remove(cls.sample_write_db)
+
+
+class EmailMatchTestCase(unittest.TestCase):
+    """Test case for the EmailMatch helper class"""
+    def test_message_does_not_match(self):
+        location = 'dublin'
+        query = 'scientist'
+        listings = (
+            '1. Lead Data Scientist @ Brightwater Group\n'
+            'Link: http://ie.indeed.com/viewjob?jk=4da3f3ec1f781a3f\n'
+            'Location: Dublin\n'
+            'Snippet: Our client, a major, international banking brand, currently '
+            'has a job opening for a lead data scientist. As a lead data Scientist '
+            'sitting within the banks...\n'
+        )
+
+        body = (
+            f'Hello test.recipient,\n\n'
+            f'There are 2 new job listings to review.\n'
+            f'The following job listings were found for {repr(query)} in '
+            f'{repr(location)}:\n\n'
+            f'{listings}\n'
+            f'- T'
+        )
+
+        message = (
+            f'From: test.sender@gmail.com <test.sender@gmail.com>\n'
+            f'To: test.recipient@gmail.com\n'
+            f'Subject: Job opportunities: 2 new jobs posted\n'
+            f'{body}'
+        )
+
+        # bad subject line in expected message
+        expected = {
+            'subject': 'Incorrect subject line',
+            'from': 'test.sender@gmail.com <test.sender@gmail.com>',
+            'to': 'test.recipient@gmail.com',
+            'message': body,
+        }
+
+        msg = email.message_from_string(message)
+        msg.set_charset('utf-8')
+
+        self.assertNotEqual(EmailMatch(expected), msg)
 
 
 if __name__ == '__main__':

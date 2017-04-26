@@ -27,9 +27,9 @@ Setup
 #. On the left navigation pane, under ``Features`` click ``OAuth & Permissions``.
    Copy the ``Bot User OAuth Access Token`` by clicking on the ``Copy`` button.
    You will need this to authenticate your bot.
-#. Open your ``cfg.ini`` file. Under the ``[slack]`` section populate the value
-   for the ``token`` key with the value you just copied. It should start with
-   ``xoxb-``.
+#. Open your ``jobnotify.config`` file. Under the ``[slack]`` section populate
+   the value for the ``token`` key with the value you just copied. It should
+   start with ``xoxb-``.
 #. We're almost finished! Head over to the channel you wish the bot to post on.
    You can now invite the bot to the channel using ``/invite`` slash command.
    For example, ``/invite @jobnotifybot``. You should see that your bot has

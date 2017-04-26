@@ -11,13 +11,15 @@ import smtplib
 import sys
 # import time
 from urllib.parse import urlencode
-from urllib.request import urlopen
+import urllib.request
 
 from slackclient import SlackClient
 
 from .exceptions import (
     # BlankKeyError,
     ConfigurationFileError,
+    EmailAuthenticationError,
+    IndeedAuthenticationError,
     SlackCfgError,
     # RequiredKeyMissingError,
     # SectionNotFoundError,
@@ -34,7 +36,10 @@ from .utils import (
 
 INDEED_BASE_URL = 'http://api.indeed.com/ads/apisearch'
 INDEED_API_LIMIT = 25
-DB_DIR = 'databases'
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+# APP_DATA_DIR = os.path.join(os.path.expanduser('~'), '.jobnotify')
+DB_DIR = os.path.join(ROOT_DIR, 'databases')
+TEST_DB_DIR = os.path.join(ROOT_DIR, '.test_databases')
 
 
 def build_url(base_url, params):
@@ -74,7 +79,7 @@ def construct_slack_message(posts):
     nposts = len(posts)
 
     # build the full message
-    msg_template = '{}. <{url}|{jobtitle} @ {compay}>\nSnippet: {desc}\n'
+    msg_template = '{}. <{url}|{jobtitle} @ {company}>\nSnippet: {desc}\n'
     msg = '\n'.join(msg_template.format(i+1, **p) for i, p in enumerate(posts.values()))
 
     if nposts > 10:
@@ -150,29 +155,31 @@ def construct_email(cfg, query, location, posts):
     return s
 
 
-def indeed_api_request(params, publisher_id):
+def indeed_api_request(params):
     """Performs an API request and returns results.
 
     Args:
-        params:
-        publisher_id:
+        params: dictionary with search parameters.
 
     Returns:
-        posts: a list of jobs
+        posts: a generator containing dictionaries.
+
+    Raises:
+        json.decoder.JSONDecodeError: may be raised if we
+            get a malformed response from the API.
     """
     complete_result = False
 
     while not complete_result:
         url = build_url(INDEED_BASE_URL, params)
 
-        with urlopen(url) as u:
+        with urllib.request.urlopen(url) as u:
             r = u.read().decode('utf-8')
 
-        try:
-            response = json.loads(r)
-        except json.JSONDecodeError as e:
-            logging.exception('Error: {}'.format(e))
-            sys.exit()
+        response = json.loads(r)
+
+        if 'error' in response:
+            raise IndeedAuthenticationError('Invalid Indeed publisher key provided.')
 
         for result in response['results']:
             yield {
@@ -218,7 +225,13 @@ def email_notify(cfg, posts, query, location):
     msg = email.message_from_string(message)
     msg.set_charset('utf-8')
 
-    send_email(user, password, msg)
+    try:
+        send_email(user, password, msg)
+    except smtplib.SMTPAuthenticationError as e:
+        raise EmailAuthenticationError(
+            'Email authentication error. Please check entries for `email_from` '
+            'and `password` in your configuration file.'
+        )
 
 
 def send_email(user, password, msg):
@@ -228,6 +241,10 @@ def send_email(user, password, msg):
         user: account of sender
         password: password of sender
         msg: email.message.Message object
+
+    Raises:
+        smtplib.SMTPAuthenticationError:
+            535, b'5.7.8 Username and Password not accepted.
     """
     with smtplib.SMTP('smtp.gmail.com', 587) as smtp:
         smtp.ehlo()  # success 250
@@ -278,7 +295,7 @@ def slack_notify(cfg, posts):
         )
 
 
-def jobnotify(cfg_filename='cfg.ini'):
+def jobnotify(cfg_filename='jobnotify.config', database_dir=DB_DIR):
     """Main entry point for the script"""
     # TODO: if config does not exist perhaps populate with defaults
     if not os.path.isfile(cfg_filename):
@@ -288,7 +305,7 @@ def jobnotify(cfg_filename='cfg.ini'):
     # indeed_cfg, email_cfg = get_section_configs(cfg_filename)
     cfgs = get_section_configs(cfg_filename)
 
-    # the `indeed` section is the fisr
+    # the `indeed` section is the first section in the list
     indeed_cfg = cfgs[0]
 
     # load configuration parameters for indeed api
@@ -325,11 +342,12 @@ def jobnotify(cfg_filename='cfg.ini'):
     query, loc = get_sanitised_params(params['q'], params['l'])
 
     db_name = f'{query}_{loc}.json'
-    logging.info('Load JSON database %r', os.path.join(DB_DIR, db_name))
-    db = load_json_db(os.path.join(DB_DIR, db_name))
+    db_path = os.path.join(database_dir, db_name)
+    logging.info('Load JSON database %r', db_path)
+    db = load_json_db(db_path)
 
     # get all listings from the indeed API
-    all_posts = indeed_api_request(params, indeed_cfg['key'])
+    all_posts = indeed_api_request(params)
 
     # build a list of posts that we haven't seen before
     posts = {k: v for d in all_posts for k, v in d.items() if k not in db}
@@ -346,9 +364,9 @@ def jobnotify(cfg_filename='cfg.ini'):
         # update our existing database
         db.update(posts)
 
-        logging.info('Write JSON database %r', os.path.join(DB_DIR, db_name))
+        logging.info('Write JSON database %r', db_path)
 
-        write_json_db(db, os.path.join(DB_DIR, db_name))
+        write_json_db(db, db_path)
     else:
         logging.info('No new positions since last email. No email sent.')
 
@@ -377,9 +395,21 @@ def main():
         level=logging.DEBUG
     )
 
+    # create an application data directory in users home directory
+    # for d in (APP_DATA_DIR, DB_DIR, TEST_DB_DIR):
+    #     try:
+    #         os.mkdir(d)
+    #     except FileExistsError:
+    #         logging.debug('os.mkdir failed: directory=%r already exists', d)
+
     try:
-        jobnotify('cfg.ini')
-    except (FileNotFoundError, ConfigurationFileError, DuplicateOptionError) as e:
+        jobnotify('jobnotify.config', DB_DIR)
+    except (
+            ConfigurationFileError,
+            DuplicateOptionError,
+            FileNotFoundError,
+            json.decoder.JSONDecodeError,
+            ) as e:
         print(f'ERROR: {e}')
         logging.exception(e)
 

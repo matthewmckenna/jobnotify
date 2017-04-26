@@ -1,6 +1,6 @@
 __pycache__/
 
-cfg.ini
+jobnotify.config
 fix.sh
 
 # setuptools distribution folder
