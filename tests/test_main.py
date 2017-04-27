@@ -3,7 +3,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from .context import jobnotify
+from .context import jobnotify, SAMPLE_CFG_FILE_PATH, TEST_DB_DIR
 from jobnotify.utils import EmailMatch
 
 
@@ -11,9 +11,9 @@ class MainTestCase(unittest.TestCase):
     """Test case for normal operation via `main`."""
     @classmethod
     def setUpClass(cls):
-        cls.raw_response_path = os.path.join(jobnotify.TEST_DB_DIR, '.rawresponseshort.json')
-        cls.cfg_filename = 'jobnotify.config.sample'
-        cls.expected_db_filename = os.path.join(jobnotify.TEST_DB_DIR, 'scientist_dublin.json')
+        cls.raw_response_path = os.path.join(TEST_DB_DIR, '.rawresponseshort.json')
+        cls.cfg_filename = SAMPLE_CFG_FILE_PATH
+        cls.expected_db_filename = os.path.join(TEST_DB_DIR, 'scientist_dublin.json')
 
         with open(cls.raw_response_path, 'r') as f:
             cls.rawdb = json.load(f)
@@ -59,7 +59,7 @@ class MainTestCase(unittest.TestCase):
         urlopen_instance = mock_urlopen.return_value.__enter__.return_value
         urlopen_instance.read.return_value = self.dbs.encode('utf-8')
 
-        jobnotify.jobnotify(self.cfg_filename, jobnotify.TEST_DB_DIR)
+        jobnotify.jobnotify(self.cfg_filename, TEST_DB_DIR)
 
         smtp_instance = mock_smtp.return_value.__enter__.return_value
         smtp_instance.send_message.assert_called_with(EmailMatch(expected))
@@ -76,7 +76,7 @@ class MainTestCase(unittest.TestCase):
         with open(self.expected_db_filename, 'w') as f:
             json.dump(d, f)
 
-        jobnotify.jobnotify(self.cfg_filename, jobnotify.TEST_DB_DIR)
+        jobnotify.jobnotify(self.cfg_filename, TEST_DB_DIR)
         self.assertFalse(mock_notify.called)
 
     def tearDown(self):

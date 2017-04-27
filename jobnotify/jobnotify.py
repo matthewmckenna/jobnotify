@@ -29,17 +29,17 @@ from .utils import (
     # configure_account,
     get_sanitised_params,
     get_section_configs,
+    initial_setup,
     # load_cfg,
     load_json_db,
+    process_args,
     write_json_db,
 )
 
 INDEED_BASE_URL = 'http://api.indeed.com/ads/apisearch'
 INDEED_API_LIMIT = 25
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-# APP_DATA_DIR = os.path.join(os.path.expanduser('~'), '.jobnotify')
-DB_DIR = os.path.join(ROOT_DIR, 'databases')
-TEST_DB_DIR = os.path.join(ROOT_DIR, '.test_databases')
+DB_DIR = os.path.join(os.path.expanduser('~'), '.jobnotify', 'databases')
+PATH_TO_CFG = os.path.join(os.path.expanduser('~'), '.jobnotify', 'jobnotify.config')
 
 
 def build_url(base_url, params):
@@ -295,7 +295,7 @@ def slack_notify(cfg, posts):
         )
 
 
-def jobnotify(cfg_filename='jobnotify.config', database_dir=DB_DIR):
+def jobnotify(cfg_filename=PATH_TO_CFG, database_dir=DB_DIR):
     """Main entry point for the script"""
     # TODO: if config does not exist perhaps populate with defaults
     if not os.path.isfile(cfg_filename):
@@ -388,22 +388,29 @@ def notify(cfgs, posts):
 
 def main():
     """Main entry point for this utility."""
-    # some simple logging for now
-    logging.basicConfig(
-        filename='.jobnotify.log',
-        format='%(asctime)s %(message)s',
-        level=logging.DEBUG
-    )
+    # process command line arguments
+    # if no command line args are passed sys.argv[1:] == []
+    args = process_args(sys.argv[1:])
 
-    # create an application data directory in users home directory
-    # for d in (APP_DATA_DIR, DB_DIR, TEST_DB_DIR):
-    #     try:
-    #         os.mkdir(d)
-    #     except FileExistsError:
-    #         logging.debug('os.mkdir failed: directory=%r already exists', d)
+    if args.verbose:
+        # setup basic logging to file
+        logging.basicConfig(
+            filename=f'.{os.path.splitext(os.path.basename(__file__))[0]}.log',
+            format='%(asctime)s %(message)s',
+            level=logging.DEBUG
+        )
+    else:
+        # disable logging
+        logging.disable(logging.CRITICAL)
+
+    app_data_dir = os.path.join(os.path.expanduser('~'), '.jobnotify')
+
+    # if the app data directory has not been set up before then do this now
+    if not os.path.isdir(app_data_dir):
+        initial_setup(app_data_dir)
 
     try:
-        jobnotify('jobnotify.config', DB_DIR)
+        jobnotify(PATH_TO_CFG, DB_DIR)
     except (
             ConfigurationFileError,
             DuplicateOptionError,

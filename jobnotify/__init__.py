@@ -15,15 +15,15 @@ from .jobnotify import (
     INDEED_BASE_URL,
     jobnotify,
     notify,
-    ROOT_DIR,
     send_email,
     slack_notify,
-    TEST_DB_DIR,
 )
 from .utils import (
     EmailMatch,
     get_sanitised_params,
     get_section_configs,
+    initial_setup,
     load_json_db,
     load_cfg,
+    process_args,
 )

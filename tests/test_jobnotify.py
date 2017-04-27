@@ -8,7 +8,7 @@ from unittest.mock import call, patch
 # from urllib.parse import urlencode
 # from urllib.request import urlopen
 
-# from .context import jobnotify
+from .context import SAMPLE_CFG_FILE_PATH, TEST_DB_DIR
 from jobnotify import (
     build_url,
     construct_email,
@@ -19,7 +19,6 @@ from jobnotify import (
     notify,
     send_email,
     slack_notify,
-    TEST_DB_DIR,
 )
 from jobnotify.exceptions import (
     EmailAuthenticationError,
@@ -201,7 +200,7 @@ class EmailTestCase(unittest.TestCase):
         cls.query = 'scientist'
         cls.location = 'dublin'
         cls.signature = '- T'
-        cls.sample_cfg_filename = 'jobnotify.config.sample'
+        cls.sample_cfg_filename = SAMPLE_CFG_FILE_PATH
         cls.sample_database_name = os.path.join(TEST_DB_DIR, '.sampledb.json')
         cls.no_opt_params_filename = 'cfg.no_opt_params'
 
@@ -328,7 +327,7 @@ class NotifyTestCase(unittest.TestCase):
             'email_to': 'test.recipient@gmail.com',
         }
         cls.sample_db_name = os.path.join(TEST_DB_DIR, '.sampledb.json')
-        cls.sample_cfg_path = 'jobnotify.config.sample'
+        cls.sample_cfg_path = SAMPLE_CFG_FILE_PATH
 
         c = ConfigParser()
         c.read(cls.sample_cfg_path)

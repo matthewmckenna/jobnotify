@@ -5,17 +5,18 @@ import email
 import json
 import os
 # import shutil
-# from tempfile import TemporaryFile
+from tempfile import TemporaryDirectory
 import unittest
 
-from .context import jobnotify
-from jobnotify import TEST_DB_DIR
+from .context import jobnotify, SAMPLE_CFG_FILE_PATH, TEST_DB_DIR
 from jobnotify.utils import (
     EmailMatch,
     get_sanitised_params,
     get_section_configs,
+    initial_setup,
     load_cfg,
     load_json_db,
+    process_args,
     write_json_db,
 )
 from jobnotify.exceptions import (
@@ -35,7 +36,7 @@ class ConfigFileTestCase(unittest.TestCase):
         cls.email_reqs = {'email_to', 'email_from', 'password'}
         cls.slack_reqs = {'token', 'channel'}
         cls.notify_via_reqs = {'email', 'slack'}
-        cls.sample_filename = 'jobnotify.config.sample'
+        cls.sample_filename = SAMPLE_CFG_FILE_PATH
         cls.blank_key_filename = os.path.join(TEST_DB_DIR, '.blankkey')
         cls.no_notifications = os.path.join(TEST_DB_DIR, '.nonotifications')
 
@@ -210,6 +211,90 @@ class EmailMatchTestCase(unittest.TestCase):
         msg.set_charset('utf-8')
 
         self.assertNotEqual(EmailMatch(expected), msg)
+
+
+class InitialSetupTestCase(unittest.TestCase):
+    """Test case for creating required directories and files."""
+    @classmethod
+    def setUpClass(cls):
+        cls.app_data_dir_name = '.jobconfig'
+        cls.config_filename = 'jobnotify.config'
+        cls.sample_cfg_filename = SAMPLE_CFG_FILE_PATH
+        with open(cls.sample_cfg_filename, 'r') as f:
+            cls.sample_cfg = f.read()
+
+    def test_app_data_dir_does_not_exist_create_app_data_dir(self):
+        """Test we create all necessary directories and files from scratch."""
+        with TemporaryDirectory() as dirname:
+            app_data_dir = os.path.join(dirname, self.app_data_dir_name)
+            initial_setup(app_data_dir)
+            self.assertTrue(os.path.isdir(app_data_dir))
+
+    def test_app_data_dir_does_not_exist_create_databases_dir(self):
+        """Test we create all necessary directories and files from scratch."""
+        with TemporaryDirectory() as dirname:
+            app_data_dir = os.path.join(dirname, self.app_data_dir_name)
+            db_dir = os.path.join(app_data_dir, 'databases')
+            initial_setup(app_data_dir)
+            self.assertTrue(os.path.isdir(db_dir))
+
+    def test_app_data_dir_does_not_exist_create_config_file(self):
+        """Test we create all necessary directories and files from scratch."""
+        with TemporaryDirectory() as dirname:
+            app_data_dir = os.path.join(dirname, self.app_data_dir_name)
+            initial_setup(app_data_dir)
+            # path to the created configuration file
+            cfg_path = os.path.join(app_data_dir, self.config_filename)
+            with open(cfg_path, 'r') as f:
+                cfg = f.read()
+
+            self.assertEqual(self.sample_cfg, cfg)
+
+    def test_app_data_dir_exists_create_databases_dir(self):
+        """Test we create all necessary directories and files from scratch."""
+        with TemporaryDirectory() as dirname:
+            app_data_dir = os.path.join(dirname, self.app_data_dir_name)
+            os.mkdir(app_data_dir)
+            db_dir = os.path.join(app_data_dir, 'databases')
+            initial_setup(app_data_dir)
+            self.assertTrue(os.path.isdir(db_dir))
+
+    def test_app_data_dir_exists_create_cfg_file(self):
+        """Test we create all necessary directories and files from scratch."""
+        with TemporaryDirectory() as dirname:
+            app_data_dir = os.path.join(dirname, self.app_data_dir_name)
+            initial_setup(app_data_dir)
+
+            # path to the created configuration file
+            cfg_path = os.path.join(app_data_dir, self.config_filename)
+
+            with open(cfg_path, 'r') as f:
+                cfg = f.read()
+
+            self.assertEqual(self.sample_cfg, cfg)
+
+
+class ProcessArgsTestCase(unittest.TestCase):
+    """Test case for argument parsing"""
+    def test_process_verbose_flag(self):
+        args = process_args(['-v'])
+        self.assertTrue(args.verbose)
+
+    def test_process_path_to_config_file(self):
+        path_to_config = 'made/up/path/to/jobnotify.config'
+        args = process_args(['--config', path_to_config])
+        self.assertEqual(args.config, path_to_config)
+
+    def test_process_args_no_args_passed_good_cfg_path(self):
+        path_to_config = os.path.join(
+            os.path.expanduser('~'), '.jobnotify', 'jobnotify.config'
+        )
+        args = process_args()
+        self.assertEqual(args.config, path_to_config)
+
+    def test_process_args_no_args_passed_good_verbose_flag(self):
+        args = process_args()
+        self.assertFalse(args.verbose)
 
 
 if __name__ == '__main__':

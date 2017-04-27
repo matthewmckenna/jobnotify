@@ -1,5 +1,4 @@
-include jobnotify.config.sample
+include LICENSE
 include README.rst
 include docs/*.rst
-include databases/*.json
-include .test_databases/*.json
+include jobnotify/jobnotify.config.sample

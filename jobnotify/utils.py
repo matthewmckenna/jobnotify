@@ -1,8 +1,11 @@
 # from collections import defaultdict
+import argparse
 import base64
 import configparser
 import json
 import os
+from pkg_resources import resource_filename
+import shutil
 # import sys
 
 from .exceptions import (
@@ -169,3 +172,60 @@ def write_json_db(db, path_to_db):
     with open(path_to_db, 'w') as f:
         # with open(os.path.join(DB_DIR, db_name), 'w', encoding='utf-8') as f:
         json.dump(db, f, indent=2, sort_keys=True)
+
+
+def initial_setup(app_data_dir):
+    """Create files needed for `jobnotify` application."""
+    config_fn = resource_filename(__name__, 'jobnotify.config.sample')
+    # print(config_fn)
+
+    # application directory does not exist - create it
+    if not os.path.isdir(app_data_dir):
+        os.mkdir(app_data_dir)
+        os.mkdir(os.path.join(app_data_dir, 'databases'))
+        shutil.copy(config_fn, os.path.join(app_data_dir, 'jobnotify.config'))
+    else:
+        if not os.path.isdir(os.path.join(app_data_dir, 'databases')):
+            os.mkdir(os.path.join(app_data_dir, 'databases'))
+
+        # check that the configuration file exists
+        if not os.path.exists(os.path.join(app_data_dir, 'jobnotify.config')):
+            # shutil.copy(src, dst)
+            shutil.copy(config_fn, os.path.join(app_data_dir, 'jobnotify.config'))
+
+
+def process_args(
+    args=None,
+    *,
+    path_to_cfg=os.path.join(os.path.expanduser('~'), '.jobnotify', 'jobnotify.config')
+):
+    """Parse and process command line arguments.
+
+    Args:
+        args: command line arguments
+        path_to_cfg: path to the default configuration file.
+
+    Returns:
+        args: argparse.Namespace object with attributes of
+            command line arguments.
+    """
+    if args is None:
+        args = []
+
+    parser = argparse.ArgumentParser(
+        description='Send notifications about new job listings.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        '-v',
+        '--verbose',
+        help='enable logging to file',
+        action='store_true'
+    )
+    parser.add_argument(
+        '-c',
+        '--config',
+        help='path to configuration file',
+        default=path_to_cfg
+    )
+    return parser.parse_args(args)
