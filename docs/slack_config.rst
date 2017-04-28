@@ -16,7 +16,7 @@ Setup
 #. Head over to https://slack.com/ to create a new Slack team, or sign-in if you
    already have an account.
 #. With your team set up, you will now need to `create an App`_. Enter an
-   `App Name` and from the dropdown menu, selected the team the App will be
+   ``App Name`` and from the dropdown menu and select the team the App will be
    associated with.
 #. Under ``Add features and functionality``, selct the ``Bots`` button. Click
    on the ``Add a Bot User`` button. Choose a username and click the green
@@ -36,17 +36,13 @@ Setup
    joined the channel.
 
 
-The `Slack Developer Kit for Python`_ should have been installed when this
-project was ``pip install``'d. If for any reason you do not have the
-``slackclient`` library, you can install it as follows::
+Configuration
+==============
 
-    pip install slackclient
+You will now need to populate the keys under the ``[slack]`` section in your
+``jobnotify.config`` file. You should populate ``token`` and ``channel``.
 
-.. note:: This project was tested using version ``1.0.5`` of ``slackclient``.
-
-
-You will also need to populate the ``token`` key under the ``[slack]`` section
-in the configuration file.
+Under the ``[notify_via]`` you should set ``slack`` to ``true``.
 
 
 .. _Slack Developer Kit for Python: https://github.com/slackapi/python-slackclient

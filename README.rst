@@ -10,9 +10,11 @@ Job Notify
 Installation
 =============
 
+.. note:: It is recommended to install this application in a virtual environment.
+
 The easiest way to install this project is via ``pip``::
 
-    $ pip install git+https://github.com/matthewmckenna/jobnotify
+    $ pip install jobnotify
 
 Alternatively, you can clone the repository to get the `source code
 <https://github.com/matthewmckenna/jobnotify>`_.
@@ -31,42 +33,57 @@ Prerequisites
 
 Indeed
 -------
-Sign up for an `Indeed Publisher account`_ and log in.
-Click on the ``Job Search API`` tab.
-Under ``Sample Request`` section you will find your ``publisher ID``. Take note
-of this key, as you will need it later.
 
-Email
+#. Sign up for an `Indeed Publisher account`_ and log in.
+#. Click on the ``Job Search API`` tab. Under ``Sample Request`` section you
+   will find your ``publisher ID``. Take note of this key, as you will need it
+   later.
+
+Gmail
 ------
-In order to receive notifications, you will need to set up an email account to
-send the emails.
+To receive notifications via email, you will need a `Gmail account`_ to send
+the emails.
 
-You can use an existing email address to do both the sending and the receiving,
-but this would mean storing an account password for a primary account in a
-configuration file. Anyone with access to the config file would have access
-to your primary account, which is not desirable.
+While it may be possible to use an existing Gmail account to both send and
+receive the emails, this option has not been tested. This option also comes with
+a downside in that your password to this account will be stored in plaintext on
+your machine. If this is your primary account this is certainly not desirable.
 
-For this tutorial, I set up a new `Gmail account`_ to send the notification
-emails.
+I recommend setting up a new account to send the notification emails. This is a
+quick process and the account can be used in future for other notification tasks.
+Now, we will quickly set up an ``App password`` for this application.
 
+#. When you have set up your account, click on your avatar in the top-right, and
+   navigate to ``My Account``.
+#. Under ``Sign-in & security`` click on the ``Signing into Google`` link.
+#. Click on ``App passwords``.
+#. Generate a password and take note of this. This will be needed when
+   configuring ``jobnotify``.
+
+Slack
+------
+If you wish to receive job notifications via Slack, then please follow the
+instructions in `Slack Configuration`_.
 
 Configuration
 ==============
 
-#. Make a copy of the file ``jobnotify.config.sample`` and rename the copy to
-   ``jobnotify.config``.
-#. Under the ``indeed`` section, fill out the fields for ``location``,
-   ``country`` and ``query``.
-#. Under the email section, fill out the fields for ``email_from``, ``email_to``
-   and ``password``.
+Your configuration file for ``jobnotify`` will be located in ``~/.jobnotify``,
+and will be named ``jobnotify.config``.
 
-Optionally, you can uncomment the following fields, though they are not required:
+The quickest way to get a skeleton configuration file is by running the
+application with the ``-c`` or ``--config`` flag as follows:
 
-- ``name``
-- ``sender_name``
-- ``signature``
+.. code-block:: sh
 
-Each of these fields are detailed below:
+    $ jobnotify --config
+
+The will set-up the ``.jobnotify`` application data directory in your home
+directory.
+
+You will need to edit the ``jobnotify.config`` file and fill out valid values.
+Terms in brackets ``[]`` are sections. There are a number of required fields
+for each section, detailed below:
 
 ``[indeed]`` section
 ---------------------
@@ -91,7 +108,10 @@ Key              Description
 ``email_to``     Recipient email address.
 ===============  ================================================================
 
-Optional parameters:
+Optional parameters
+^^^^^^^^^^^^^^^^^^^^
+
+These optional keys are included under the ``email`` section.
 
 ================  ================================================================
 Key               Description
@@ -102,17 +122,41 @@ Key               Description
 ================  ================================================================
 
 
+``[slack]`` section
+--------------------
+
+More detail can be found in the `Slack Configuration`_ document.
+
+============  ================================================================
+Key           Description
+============  ================================================================
+``token``     Slack token for your bot.
+``channel``   Name of the Slack channel to post to. You must also include
+              the ``#``, e.g., ``#jobs``.
+============  ================================================================
+
+
+``[notify_via]`` section
+-------------------------
+
+The values for the keys below should be ``true`` or ``false``. Note that at
+least one option must be set ``true`` below.
+
+==========  =================================
+Key         Description
+==========  =================================
+``email``   Send notifications via email.
+``slack``   Send notifications via Slack.
+==========  =================================
+
+
 Usage
 ======
 
 Before running ``jobnotify``, make sure that you have followed the instructions
 under the `Prerequisites`_ and `Configuration`_ sections above.
 
-Additionally, for the time being, you must be in the ``jobnotify`` directory
-when running this application. The configuration file the application attempts
-to use is relative to the directory the application was run from.
-
-To run, navigate to the ``jobnotify`` directory and simply execute the following:
+To run simply execute the following:
 
 .. code-block:: sh
 
@@ -125,27 +169,47 @@ To run this application automatically, one can use a ``cron job``. To edit your
 
     $ crontab -e
 
-Then, to run this application at 09:00, 13:00, 18:00 and 22:00 every day, add
-the following line to your ``crontab``, replacing ``/home/matthew/jobnotify/``
-with the your own path to the ``jobnotify`` directory::
+Say for example, you wished to run the application four times a day, at 09:00,
+13:00, 18:00 and 22:00. Your ``crontab`` entry would resemble the following::
 
-    * 9,13,18,22 * * * /home/matthew/jobnotify/jobnotify
+    * 9,13,18,22 * * * /home/matthew/miniconda3/envs/jn/bin/jobnotify
+
+In the example above, note that I have provided the full path to the ``jobnotify``
+application. In the case above, I had ``pip install``ed  ``jobnotify`` to a
+new virtual environment named ``jn``. To find the full path to the application
+you can run:
+
+.. code-block:: sh
+
+    $ which jobnotify
+
+from your terminal.
 
 
-Known Issues
-=============
+Options
+=====================
 
-- It is necessary to run the application from the ``jobnotify`` directory.
-- ``jobnotify.config`` must be present in the current directory.
+If you wish to manually run the application, there are some command-line options
+available, detailed below:
 
-Experimental Features
-======================
 
-Slack Notifications
---------------------
-Slack notifications have not yet been thoroughly tested. However, if you wish
-to enable Slack notifications, follow the instructions in the `Slack
-Configuration`_ section of the docs.
+-v, --verbose  Turn on logging to file. This will output a file named
+               ``.jobnotify.log`` in your current directory.
+-c, --config  Used to create the ``.jobnotify`` application data directory and
+              sample configuration file.
+-f FILE, --file=FILE  Path to alternate configuration file. Defaults to
+                      ``~/.jobnotify/jobnotify.config``
+
+Troubleshooting
+================
+
+If you encounter any issues, please carry out the following:
+
+#. Run the application with the ``-v`` or ``--verbose`` flag. This will create
+   a log file in your current directory named ``.jobnotify.log``.
+#. Capture any output from your terminal and add to a text file.
+
+Create an issue and attach both files.
 
 
 .. _Indeed Publisher account: https://secure.indeed.com/account/register

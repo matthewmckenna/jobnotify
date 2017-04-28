@@ -282,15 +282,15 @@ class ProcessArgsTestCase(unittest.TestCase):
 
     def test_process_path_to_config_file(self):
         path_to_config = 'made/up/path/to/jobnotify.config'
-        args = process_args(['--config', path_to_config])
-        self.assertEqual(args.config, path_to_config)
+        args = process_args(['-f', path_to_config])
+        self.assertEqual(args.file, path_to_config)
 
     def test_process_args_no_args_passed_good_cfg_path(self):
         path_to_config = os.path.join(
             os.path.expanduser('~'), '.jobnotify', 'jobnotify.config'
         )
         args = process_args()
-        self.assertEqual(args.config, path_to_config)
+        self.assertEqual(args.file, path_to_config)
 
     def test_process_args_no_args_passed_good_verbose_flag(self):
         args = process_args()

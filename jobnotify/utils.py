@@ -176,22 +176,24 @@ def write_json_db(db, path_to_db):
 
 def initial_setup(app_data_dir):
     """Create files needed for `jobnotify` application."""
-    config_fn = resource_filename(__name__, 'jobnotify.config.sample')
+    sample_config_fn = resource_filename(__name__, 'jobnotify.config.sample')
+    config_fn = os.path.join(app_data_dir, 'jobnotify.config')
+    database_dir = os.path.join(app_data_dir, 'databases')
     # print(config_fn)
 
     # application directory does not exist - create it
     if not os.path.isdir(app_data_dir):
         os.mkdir(app_data_dir)
-        os.mkdir(os.path.join(app_data_dir, 'databases'))
-        shutil.copy(config_fn, os.path.join(app_data_dir, 'jobnotify.config'))
+        os.mkdir(database_dir)
+        shutil.copy(sample_config_fn, config_fn)
     else:
-        if not os.path.isdir(os.path.join(app_data_dir, 'databases')):
-            os.mkdir(os.path.join(app_data_dir, 'databases'))
+        if not os.path.isdir(database_dir):
+            os.mkdir(database_dir)
 
         # check that the configuration file exists
-        if not os.path.exists(os.path.join(app_data_dir, 'jobnotify.config')):
+        if not os.path.exists(config_fn):
             # shutil.copy(src, dst)
-            shutil.copy(config_fn, os.path.join(app_data_dir, 'jobnotify.config'))
+            shutil.copy(sample_config_fn, config_fn)
 
 
 def process_args(
@@ -225,7 +227,13 @@ def process_args(
     parser.add_argument(
         '-c',
         '--config',
+        help='set up application data directory',
+    )
+    parser.add_argument(
+        '-f',
+        '--file',
         help='path to configuration file',
         default=path_to_cfg
     )
+
     return parser.parse_args(args)

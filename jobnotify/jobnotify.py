@@ -343,8 +343,8 @@ def jobnotify(cfg_filename=PATH_TO_CFG, database_dir=DB_DIR):
 
     db_name = f'{query}_{loc}.json'
     db_path = os.path.join(database_dir, db_name)
-    logging.info('Load JSON database %r', db_path)
     db = load_json_db(db_path)
+    logging.info('Load JSON database %r', db_path)
 
     # get all listings from the indeed API
     all_posts = indeed_api_request(params)
@@ -352,14 +352,10 @@ def jobnotify(cfg_filename=PATH_TO_CFG, database_dir=DB_DIR):
     # build a list of posts that we haven't seen before
     posts = {k: v for d in all_posts for k, v in d.items() if k not in db}
     logging.info('len(posts)=%d', len(posts))
-    # posts = None
 
     if posts:
         # send the notification
-        # TODO: need a general notification function
-        # notify(email_cfg, posts, indeed_cfg['query'], indeed_cfg['location'])
         notify(cfgs, posts)
-        logging.info('Email sent with %d listings(s).', len(posts))
 
         # update our existing database
         db.update(posts)
@@ -368,7 +364,7 @@ def jobnotify(cfg_filename=PATH_TO_CFG, database_dir=DB_DIR):
 
         write_json_db(db, db_path)
     else:
-        logging.info('No new positions since last email. No email sent.')
+        logging.info('No new positions since last notification.')
 
 
 def notify(cfgs, posts):
@@ -379,18 +375,28 @@ def notify(cfgs, posts):
 
     if notify_via.getboolean('slack'):
         slack_notify(slack, posts)
+        logging.info('Slack message sent with %d listings(s)', len(posts))
 
     if notify_via.getboolean('email'):
         query = indeed.get('query')
         location = indeed.get('location')
         email_notify(email, posts, query, location)
+        logging.info('Email sent with %d listings(s).', len(posts))
+
 
 
 def main():
     """Main entry point for this utility."""
+    app_data_dir = os.path.join(os.path.expanduser('~'), '.jobnotify')
+
     # process command line arguments
     # if no command line args are passed sys.argv[1:] == []
     args = process_args(sys.argv[1:])
+
+    if args.config:
+        initial_setup(app_data_dir)
+        print(f'App data directory created: {app_data_dir}')
+        sys.exit()
 
     if args.verbose:
         # setup basic logging to file
@@ -403,14 +409,15 @@ def main():
         # disable logging
         logging.disable(logging.CRITICAL)
 
-    app_data_dir = os.path.join(os.path.expanduser('~'), '.jobnotify')
+    logging.debug('args: %r', args)
 
     # if the app data directory has not been set up before then do this now
     if not os.path.isdir(app_data_dir):
         initial_setup(app_data_dir)
+        logging.info('Created app data directory: %r', app_data_dir)
 
     try:
-        jobnotify(PATH_TO_CFG, DB_DIR)
+        jobnotify(args.file, DB_DIR)
     except (
             ConfigurationFileError,
             DuplicateOptionError,
