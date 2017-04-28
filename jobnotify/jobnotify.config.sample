@@ -3,6 +3,7 @@ key = 4815162342
 location = dublin
 country = ie
 query = scientist
+radius = 10
 
 [email]
 email_from = test.sender@gmail.com

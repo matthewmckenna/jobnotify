@@ -296,7 +296,7 @@ def jobnotify(cfg_filename=PATH_TO_CFG, database_dir=DB_DIR):
         'publisher': indeed_cfg['key'],  # publisher ID
         'q': indeed_cfg['query'],  # query
         'l': indeed_cfg['location'],  # location (city, state, region)
-        'radius': 10,  # distance from search location 'as the crow flies'
+        'radius': indeed_cfg['radius'],  # distance from search location 'as the crow flies'
         'jt': 'fulltime',  # job-type: 'fulltime', 'parttime, 'contract', 'temporary', 'internship'
         'limit': 25,  # max number of results per query - max 25
         'fromage': 10,  # number of days back to search

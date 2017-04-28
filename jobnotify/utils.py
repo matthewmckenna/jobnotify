@@ -2,6 +2,7 @@ import argparse
 import base64
 import configparser
 import json
+import logging
 import os
 from pkg_resources import resource_filename
 import shutil
@@ -137,7 +138,7 @@ def get_section_configs(filename):
 
     # TODO: pass in this structure
     section_reqs = [
-        ('indeed', {'key', 'query', 'location', 'country'}),
+        ('indeed', {'key', 'query', 'location', 'country', 'radius'}),
         ('email', {'email_from', 'email_to', 'password'}),
         ('slack', {'token', 'channel'}),
         ('notify_via', {'email', 'slack'}),
@@ -154,6 +155,21 @@ def get_section_configs(filename):
         raise NotificationsNotConfiguredError(
             'Notifications must be set for at least one option.'
         )
+
+    indeed = cfgs[0]
+
+    # check that the value passed for radius is valid
+    try:
+        indeed.getfloat('radius')
+    except ValueError:
+        print(
+            f'WARNING: Bad value for `radius` in `[indeed]` section ({indeed["radius"]}). '
+            'Defaulting to radius = 10.'
+        )
+        logging.info(
+            'Bad value (%r) passed for `radius`. Setting radius = 10.', indeed['radius']
+        )
+        indeed['radius'] = '10'
 
     return cfgs
 

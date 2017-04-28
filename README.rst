@@ -95,6 +95,7 @@ Key             Description
 ``country``     Country code to search - e.g., ``ie`` for Ireland, ``gb`` for
                 the United Kingdom.
 ``query``       Job search term - e.g., ``data scientist``.
+``radius``      Distance (in km) from search location 'as the crow flies'.
 ==============  ======================================================================
 
 

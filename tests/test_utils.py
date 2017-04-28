@@ -1,5 +1,7 @@
 from configparser import ConfigParser
+from contextlib import redirect_stdout
 import email
+import io
 import json
 import os
 from tempfile import TemporaryDirectory
@@ -100,6 +102,42 @@ class ConfigFileTestCase(unittest.TestCase):
         """Test we raise when notifications aren't configured."""
         with self.assertRaises(NotificationsNotConfiguredError):
             get_section_configs(self.no_notifications)
+
+    def test_string_radius(self):
+        """Test that we set a valid radius if a string is present."""
+        c = ConfigParser()
+        c.read(self.sample_filename)
+        c['indeed']['radius'] = 'bad_value'
+        with TemporaryDirectory() as dirname:
+            cfg_path = os.path.join(dirname, 'bad_rad.config')
+            with open(cfg_path, 'w') as f:
+                c.write(f)
+
+            g = io.StringIO()
+            with redirect_stdout(g):
+                cfgs = get_section_configs(cfg_path)
+
+        self.assertEqual('10', cfgs[0]['radius'])
+
+    def test_float_radius(self):
+        """Test that we handle an integer radius correctly."""
+        c = ConfigParser()
+        c.read(self.sample_filename)
+        c['indeed']['radius'] = '10.5'
+        with TemporaryDirectory() as dirname:
+            cfg_path = os.path.join(dirname, 'float_rad.config')
+            with open(cfg_path, 'w') as f:
+                c.write(f)
+
+            cfgs = get_section_configs(cfg_path)
+
+        self.assertEqual('10.5', cfgs[0]['radius'])
+
+    def test_integer_radius(self):
+        """Test that we handle a float radius correctly."""
+        cfgs = get_section_configs(self.sample_filename)
+
+        self.assertEqual('10', cfgs[0]['radius'])
 
     @classmethod
     def tearDownClass(cls):
