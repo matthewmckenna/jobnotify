@@ -74,7 +74,7 @@ def construct_slack_message(posts):
     msg = '\n'.join(msg_template.format(i+1, **p) for i, p in enumerate(posts.values()))
 
     if nposts > 10:
-        logging.debug('Splitting message into %d chunks..', nposts//10)
+        logging.debug('Splitting message into %d chunks..', (nposts//10)+1)
         # split the message after 10 listings, i.e., on a `11.`, `21.`, etc.
         t = [''] + re.split(r'(\d?\d1\.)', msg)
         # create an iterator from the above list

@@ -226,18 +226,19 @@ def process_args(
         '-v',
         '--verbose',
         help='enable logging to file',
-        action='store_true'
+        action='store_true',
     )
     parser.add_argument(
         '-c',
         '--config',
         help='set up application data directory',
+        action='store_true',
     )
     parser.add_argument(
         '-f',
         '--file',
         help='path to configuration file',
-        default=path_to_cfg
+        default=path_to_cfg,
     )
 
     return parser.parse_args(args)
