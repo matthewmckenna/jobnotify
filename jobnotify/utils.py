@@ -1,4 +1,3 @@
-# from collections import defaultdict
 import argparse
 import base64
 import configparser
@@ -6,11 +5,9 @@ import json
 import os
 from pkg_resources import resource_filename
 import shutil
-# import sys
 
 from .exceptions import (
     BlankKeyError,
-    # ConfigurationFileError,
     NotificationsNotConfiguredError,
     RequiredKeyMissingError,
     SectionNotFoundError,
@@ -157,12 +154,6 @@ def get_section_configs(filename):
         raise NotificationsNotConfiguredError(
             'Notifications must be set for at least one option.'
         )
-        # try:
-        #     cfgs.append(load_cfg(filename, section, requirements))
-        # except (ConfigurationFileError, DuplicateOptionError) as e:
-        #     print(f'ERROR: {e}')
-        #     logging.exception(e)
-        #     sys.exit()
 
     return cfgs
 
@@ -170,7 +161,6 @@ def get_section_configs(filename):
 def write_json_db(db, path_to_db):
     """Write `db` to file."""
     with open(path_to_db, 'w') as f:
-        # with open(os.path.join(DB_DIR, db_name), 'w', encoding='utf-8') as f:
         json.dump(db, f, indent=2, sort_keys=True)
 
 
@@ -179,7 +169,6 @@ def initial_setup(app_data_dir):
     sample_config_fn = resource_filename(__name__, 'jobnotify.config.sample')
     config_fn = os.path.join(app_data_dir, 'jobnotify.config')
     database_dir = os.path.join(app_data_dir, 'databases')
-    # print(config_fn)
 
     # application directory does not exist - create it
     if not os.path.isdir(app_data_dir):
@@ -192,7 +181,6 @@ def initial_setup(app_data_dir):
 
         # check that the configuration file exists
         if not os.path.exists(config_fn):
-            # shutil.copy(src, dst)
             shutil.copy(sample_config_fn, config_fn)
 
 

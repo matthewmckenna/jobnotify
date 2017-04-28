@@ -1,36 +1,27 @@
 #!/usr/bin/env python3
 from configparser import DuplicateOptionError
 import email
-# import http.client  # to catch IncompleteRead
 import json
 import logging
 import os
-# from pprint import pprint
 import re
 import smtplib
 import sys
-# import time
 from urllib.parse import urlencode
 import urllib.request
 
 from slackclient import SlackClient
 
 from .exceptions import (
-    # BlankKeyError,
     ConfigurationFileError,
     EmailAuthenticationError,
     IndeedAuthenticationError,
     SlackCfgError,
-    # RequiredKeyMissingError,
-    # SectionNotFoundError,
 )
 from .utils import (
-    # ConfigurationFileError,
-    # configure_account,
     get_sanitised_params,
     get_section_configs,
     initial_setup,
-    # load_cfg,
     load_json_db,
     process_args,
     write_json_db,
@@ -212,12 +203,6 @@ def email_notify(cfg, posts, query, location):
         query: query from `indeed` section of config file
         location: location from `indeed` section of config file
     """
-    # TODO: Error handling
-    # email_cfg = load_cfg(
-    #     cfg_filename,
-    #     'email',
-    #     required={'email_from', 'email_to', 'password'},
-    # )
     user = cfg['email_from']
     password = cfg['password']
 
@@ -301,35 +286,21 @@ def jobnotify(cfg_filename=PATH_TO_CFG, database_dir=DB_DIR):
     if not os.path.isfile(cfg_filename):
         raise FileNotFoundError(f'Configuration file {repr(cfg_filename)} does not exist.')
 
-    # load both configuration files
-    # indeed_cfg, email_cfg = get_section_configs(cfg_filename)
+    # load all configuration files
     cfgs = get_section_configs(cfg_filename)
 
     # the `indeed` section is the first section in the list
     indeed_cfg = cfgs[0]
 
-    # load configuration parameters for indeed api
-    # try:
-    #     indeed_cfg = load_cfg(
-    #         cfg_filename,
-    #         section='indeed',
-    #         required={'key', 'query', 'location', 'country'},
-    #     )
-    # except (ConfigurationFileError, DuplicateOptionError) as e:
-    #     print('ERROR: {}'.format(e))
-    #     logging.exception(e)
-
     params = {
         'publisher': indeed_cfg['key'],  # publisher ID
         'q': indeed_cfg['query'],  # query
         'l': indeed_cfg['location'],  # location (city, state, region)
-        # 'sort': 'date',  # sort by 'date' or 'relevance'
         'radius': 10,  # distance from search location 'as the crow flies'
         'jt': 'fulltime',  # job-type: 'fulltime', 'parttime, 'contract', 'temporary', 'internship'
         'limit': 25,  # max number of results per query - max 25
         'fromage': 10,  # number of days back to search
         'start': 0,  # start results at this search number
-        # 'filter': '',  # filter dupilcate postings
         'highlight': 0,  # bold search term in snippet
         'latlong': 1,  # return latitude and longitude
         'co': indeed_cfg['country'],  # search within this country

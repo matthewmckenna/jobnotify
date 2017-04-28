@@ -1,10 +1,7 @@
 from configparser import ConfigParser
-# from itertools import dropwhile
-# import io
 import email
 import json
 import os
-# import shutil
 from tempfile import TemporaryDirectory
 import unittest
 
@@ -21,7 +18,6 @@ from jobnotify.utils import (
 )
 from jobnotify.exceptions import (
     BlankKeyError,
-    # ConfigurationFileError,
     NotificationsNotConfiguredError,
     RequiredKeyMissingError,
     SectionNotFoundError,
@@ -132,10 +128,9 @@ class DatabaseTestCase(unittest.TestCase):
                     "url": "http://ie.indeed.com/viewjob?jk=4da3f3ec1f781a3f",
                 }
         }
-        # shutil.copy(cls.sample_database, os.path.join('databases'))
+
         with open(cls.sample_database_name, 'r') as f:
             cls.sample_db = json.load(f)
-        # shutil.copy(source, dest)
 
     def test_load_existing_database(self):
         """Test that we correctly load a database if it exists."""

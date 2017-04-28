@@ -2,11 +2,8 @@ from configparser import ConfigParser
 import email
 import json
 import os
-# import shutil
 import unittest
 from unittest.mock import call, patch
-# from urllib.parse import urlencode
-# from urllib.request import urlopen
 
 from .context import SAMPLE_CFG_FILE_PATH, TEST_DB_DIR
 from jobnotify import (
@@ -304,7 +301,6 @@ class EmailTestCase(unittest.TestCase):
             f'The following job listing was found for {repr(self.query)} in '
             f'{repr(self.location)}:\n\n'
             f'{listing}\n'
-            # f'{self.signature}'
         )
 
         s = construct_email(self.cfg_no_opt, self.query, self.location, self.single_job_db)
@@ -584,7 +580,6 @@ class IndeedAPITestCase(unittest.TestCase):
     @patch('urllib.request.urlopen')
     def test_indeed_bad_publisher_key(self, mock_urlopen):
         """Test that we raise for a bad publisher key."""
-        # {'error': 'Invalid publisher number provided.'}
         expected_response = '{"error": "Invalid publisher number provided."}'
         instance = mock_urlopen.return_value.__enter__.return_value
         instance.read.return_value = expected_response.encode('utf-8')
